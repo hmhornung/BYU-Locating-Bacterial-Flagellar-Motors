@@ -37,8 +37,7 @@ def get_heatmap(shape, pts, radius):
     return volume.astype(np.float16)
 
 def rand_aug(
-    src:torch.tensor,
-    tgt:torch.tensor,
+    sample:dict,
     aug_params=None,
     gpu:bool=True
 ):
@@ -57,11 +56,10 @@ def rand_aug(
     device='cpu'
     if gpu: device='cuda'
 
-    if len(src.shape) == 3: src = src.unsqueeze(0)
-    if len(tgt.shape) == 3: tgt = tgt.unsqueeze(0)
+    if len(sample['src'].shape) == 3: sample['src'] = sample['src'].unsqueeze(0)
+    if len(sample['tgt'].shape) == 3: sample['tgt'] = sample['tgt'].unsqueeze(0)
 
     # Convert to tensors and move to the specified device
-    sample = {"src": src, "tgt": tgt}
 
     keys = ["src", "tgt"]
     mode = ['bilinear', 'bilinear']
