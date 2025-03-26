@@ -40,14 +40,15 @@ class RandCropMMapd(MapTransform):
         self.roi_size = roi_size
 
     def __call__(self, data):
-        shapes = [data[self.keys[0]][i].shape for i in range(len(data['src']))]
-        ranges = [tuple_op(lambda x,y: x-y, shape, self.roi_size) for shape in shapes]
-        start  = [tuple(random.randint(0, r[i]) for i in range(3)) for r in ranges]
-        stop   = [tuple_op(lambda x,y: x+y, s, self.roi_size) for s in start]
+        shape = data['src'].shape
+        ranges = tuple_op(lambda x,y: x-y, shape, self.roi_size)
+        start  = tuple(random.randint(0, ranges[i]) for i in range(3))
+        stop   = tuple_op(lambda x,y: x+y, start, self.roi_size)
+        
         result = {}
         for key in self.keys:
-            crops = [data[key][i][tuple(slice(j, k) for j, k in zip(start[i], stop[i]))].copy() for i in range(len(data[key]))]
-            result[key] = np.expand_dims(np.stack(crops), axis=1)
+            crop = data[key][tuple(slice(j, k) for j, k in zip(start, stop))].copy()
+            result[key] = np.expand_dims(crop, axis=0)
         return result
 
 class ToTorchd(MapTransform):
@@ -98,10 +99,10 @@ def rand_aug(
 
     keys = ["src", "tgt"]
     mode = ['bilinear', 'bilinear']
-
+    
     scale_range = [random.uniform(1.0-aug_params['scale_range'], 1.0+aug_params['scale_range']) for i in range(3)]
 
-    augment1 = Compose([
+    augment = Compose([
         RandCropMMapd(
             keys=keys,
             roi_size=aug_params["patch_size"]
@@ -121,12 +122,6 @@ def rand_aug(
             spatial_axis=[0, 1, 2], 
             prob=aug_params["flip_prob"]
         ),
-        SqueezeDimd(
-            keys=keys,
-            dim=1
-        )
-        ])
-    augment2 = Compose([
         Zoomd(
             keys=keys,
             zoom=scale_range,
@@ -149,11 +144,7 @@ def rand_aug(
             mode="constant"
         )
     ])
-    data1 = augment1(sample)
-    print(data1['src'].shape)
-    print(data1['tgt'].shape)
-    data2 = augment2(data1)
-    # return augment(data2)
+    return augment(sample)
 
 #testing
 
