@@ -13,8 +13,8 @@ class MMapDataset(Dataset):
         self.tgt_files = [os.path.join(tgt_dir,f"{f}.npy") for f in names]
         if aug_params is None:
             self.aug_params = {
-                "patch_size": (100,100,100),
-                "final_size":   (100,100,100),
+                "patch_size": (96,96,96),
+                "final_size":   (96,96,96),
                 "flip_prob":  0.5,
                 "rot_prob":   0.5,
                 "scale_prob": 1.0,
@@ -43,7 +43,7 @@ class MMapDataset(Dataset):
             del sample[key]
             gc.collect()
         return aug
-
+    
 # Custom collate function
 def custom_collate(batch):
     src = torch.stack([sample['src'] for sample in batch])

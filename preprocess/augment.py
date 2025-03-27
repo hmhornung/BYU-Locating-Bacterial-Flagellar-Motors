@@ -40,6 +40,7 @@ class RandCropMMapd(MapTransform):
         self.roi_size = roi_size
 
     def __call__(self, data):
+        print(data['src'])
         shape = data['src'].shape
         ranges = tuple_op(lambda x,y: x-y, shape, self.roi_size)
         start  = tuple(random.randint(0, ranges[i]) for i in range(3))
@@ -101,7 +102,7 @@ def rand_aug(
     mode = ['bilinear', 'bilinear']
     
     scale_range = [random.uniform(1.0-aug_params['scale_range'], 1.0+aug_params['scale_range']) for i in range(3)]
-
+    
     augment = Compose([
         RandCropMMapd(
             keys=keys,
@@ -142,7 +143,11 @@ def rand_aug(
             spatial_size=aug_params["final_size"], 
             method="symmetric",
             mode="constant"
-        )
+        ),
+        ToDeviced(
+            keys=keys,
+            device='cpu'
+        ),
     ])
     return augment(sample)
 
