@@ -14,7 +14,8 @@ from monai.transforms import (
     RandRotated,
     ToDeviced,
     Zoomd,
-    SqueezeDimd
+    SqueezeDimd,
+    ToTensord
 )
 
 aug_params = {
@@ -40,7 +41,6 @@ class RandCropMMapd(MapTransform):
         self.roi_size = roi_size
 
     def __call__(self, data):
-        print(data['src'])
         shape = data['src'].shape
         ranges = tuple_op(lambda x,y: x-y, shape, self.roi_size)
         start  = tuple(random.randint(0, ranges[i]) for i in range(3))
@@ -51,15 +51,6 @@ class RandCropMMapd(MapTransform):
             crop = data[key][tuple(slice(j, k) for j, k in zip(start, stop))].copy()
             result[key] = np.expand_dims(crop, axis=0)
         return result
-
-class ToTorchd(MapTransform):
-    def __init__(self, keys):
-        super().__init__(keys)
-
-    def __call__(self, data):
-        for key in self.keys:
-            data[key] = torch.from_numpy(data[key])
-        return data
 
 def gaussian_filter_sitk(volume, radius):
     image = sitk.GetImageFromArray(volume)
@@ -108,8 +99,9 @@ def rand_aug(
             keys=keys,
             roi_size=aug_params["patch_size"]
         ),
-        ToTorchd(
-            keys=keys
+        ToTensord(
+            keys=keys,
+            dtype=torch.float32
         ),
         ToDeviced(
             keys=keys,
@@ -147,9 +139,14 @@ def rand_aug(
         ToDeviced(
             keys=keys,
             device='cpu'
-        ),
+        )
     ])
-    return augment(sample)
+    sample=augment(sample)
+    
+    for key in keys:
+        sample[key]
+    
+    return sample
 
 #testing
 

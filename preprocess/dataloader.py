@@ -5,6 +5,18 @@ import augment
 import gc
 import os
 
+def release_mmap_array(mmap_array):
+    '''
+    something that ChatGPT created to release mmap files quicker
+    the mmap delete was discovered as a large bottleneck in the pipeline
+    '''
+    if hasattr(mmap_array, 'base') and mmap_array.base is not None:
+        try:
+            mmap_array.base.close()  # Close the file descriptor explicitly
+        except AttributeError:
+            pass  # Some numpy versions may not expose .base.close()
+    del mmap_array
+
 class MMapDataset(Dataset):
     def __init__(self, names, path='../data/hm30rad/', aug_params=None, gpu=False):
         src_dir=os.path.join(path,'src')
@@ -40,8 +52,7 @@ class MMapDataset(Dataset):
         )
         
         for key in aug.keys():
-            del sample[key]
-            gc.collect()
+            release_mmap_array(sample[key])
         return aug
     
 # Custom collate function
