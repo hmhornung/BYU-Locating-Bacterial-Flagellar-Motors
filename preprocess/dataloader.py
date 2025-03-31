@@ -18,11 +18,12 @@ def release_mmap_array(mmap_array):
     del mmap_array
 
 class MMapDataset(Dataset):
-    def __init__(self, names, path='../data/hm30rad/', aug_params=None, gpu=False):
+    def __init__(self, names, path='../data/hm30rad/', aug_params=None, gpu=False, zero_threshold = 0.0):
         src_dir=os.path.join(path,'src')
         tgt_dir=os.path.join(path,'tgt')
         self.src_files = [os.path.join(src_dir,f"{f}.npy") for f in names]
         self.tgt_files = [os.path.join(tgt_dir,f"{f}.npy") for f in names]
+        self.zero_threshold = zero_threshold
         if aug_params is None:
             self.aug_params = {
                 "patch_size": (96,96,96),
@@ -53,6 +54,8 @@ class MMapDataset(Dataset):
         
         for key in aug.keys():
             release_mmap_array(sample[key])
+        if torch.max(aug['tgt']) < self.zero_threshold:
+            aug['tgt'] = torch.zeros(aug['src'].shape, dtype=torch.float32)
         return aug
     
 # Custom collate function
@@ -60,3 +63,30 @@ def custom_collate(batch):
     src = torch.stack([sample['src'] for sample in batch])
     tgt = torch.stack([sample['tgt'] for sample in batch])
     return {'src': src, 'tgt': tgt}
+
+class Scheduler:
+    def __init__(self, warmup_epochs = 0, warmup_value = 1.0, init_value = 1.0, factor = 1.0, stop=10):
+        self.warmup_epochs = warmup_epochs
+        self.warmup = False
+        self.value = 1.0
+        self.factor = factor
+        self.epoch = 0
+        self.init_value = init_value
+        self.stop=stop
+        if self.warmup_epochs > 0:
+            self.warmup = True
+            self.value = warmup_value
+        else:
+            self.value = init_value
+    def step(self):
+        self.epoch += 1
+        if self.epoch == self.warmup_epochs:
+            self.value = self.init_value
+        elif self.warmup and self.epoch > self.warmup_epochs and self.epoch < (self.warmup_epochs + self.stop):
+            self.value *= self.factor
+            self.stop += 1
+        else:
+            self.value *= self.factor
+            self.stop += 1
+    def __call__(self):
+        return self.value
